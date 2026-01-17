@@ -5,35 +5,29 @@ export const submitConsultation = async (data: ConsultationFormData): Promise<bo
   // Simulate delay for UX
   await new Promise(resolve => setTimeout(resolve, 800));
 
-  // In a real scenario without the script deployed, this fetch might fail or return 404.
-  // We use no-cors mode because Google Apps Script redirects.
-  // However, getting a specific response in 'no-cors' is limited.
-  // Standard practice for GAS is POST with redirect following.
-  
   try {
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
+    // We use 'no-cors' mode.
+    // EXPLANATION: Google Apps Script redirects responses (HTTP 302), which standard browser 
+    // fetch calls often block due to CORS security policies, causing the "Something went wrong" error
+    // even though the data actually reached the sheet.
+    // 
+    // 'no-cors' tells the browser to send the data but treat the response as "opaque".
+    // We can't read the response JSON, but we stop the browser from throwing an error.
+    await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
+      mode: "no-cors", 
       body: JSON.stringify(data),
-      // 'Content-Type': 'text/plain' prevents preflight OPTIONS check issues in some browsers with GAS
       headers: {
         "Content-Type": "text/plain;charset=utf-8",
       },
     });
 
-    if (!response.ok) {
-        // Fallback for simple testing if URL is invalid
-        console.warn("API request failed, possibly due to invalid URL or CORS.");
-        throw new Error("Network response was not ok");
-    }
-
-    const result = await response.json();
-    return result.result === "success";
+    // Since 'no-cors' prevents us from reading the response status or body,
+    // if the code reaches here without throwing a network error, we assume success.
+    return true;
 
   } catch (error) {
     console.error("Submission Error:", error);
-    // If we are just testing the UI without a valid backend URL, we might want to throw
-    // But for the purpose of the deliverable expecting a working flow, we pass if it's a specific mock mode
-    // Re-throw to let component handle the UI error state
-    throw error;
+    return false;
   }
 };
